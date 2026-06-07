@@ -27,7 +27,7 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
         )
     
     # Hash the password
-    password_hash = await hash_password(user.password)
+    password_hash = hash_password(user.password)
     
     # Create new user
     new_user = User(
@@ -62,7 +62,7 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
         )
     
     # Verify password
-    is_valid = await verify_password(credentials.password, user.password_hash)
+    is_valid =  verify_password(credentials.password, user.password_hash)
     
     if not is_valid:
         raise HTTPException(

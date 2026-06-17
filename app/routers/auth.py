@@ -81,3 +81,11 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
         "token_type": "bearer",
         "user": UserResponse.model_validate(user)
     }
+
+    
+
+
+
+
+
+

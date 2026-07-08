@@ -1,4 +1,4 @@
-# FarmLink Marketplace – Capstone Project (Backend API)
+# FarmLink Marketplace 
 
 A Direct Farmer-to-Consumer Marketplace Backend built with FastAPI and PostgreSQL.
 
@@ -64,123 +64,7 @@ Farmlink_backend/
 └── README.md                # This file
 ```
 
-## Database Schema
 
-### Users Table
-Stores user accounts with role-based access.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| email | String(255) | Unique email address |
-| password_hash | String(255) | Bcrypt hashed password |
-| full_name | String(255) | User's full name |
-| role | String | "farmer" or "consumer" |
-| phone | String(20) | Optional phone number |
-| address | Text | Optional address |
-| is_active | Boolean | Account status |
-| created_at | DateTime | Account creation timestamp |
-| updated_at | DateTime | Last update timestamp |
-
-### Products Table
-Stores product listings created by farmers.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| name | String(255) | Product name |
-| description | Text | Product description |
-| price | Numeric(10,2) | Unit price |
-| quantity | Integer | Available quantity |
-| category | Enum | vegetables, fruits, grains, dairy, other |
-| farmer_id | UUID | Foreign key to users.id |
-| image_url | String(500) | Optional product image |
-| is_available | Boolean | Product availability |
-| created_at | DateTime | Creation timestamp |
-| updated_at | DateTime | Last update timestamp |
-
-### Carts Table
-Stores shopping carts (one per user).
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| user_id | UUID | Foreign key to users.id (unique) |
-| items | JSON | List of {product_id, quantity, price} |
-| total_price | Numeric(12,2) | Total cart value |
-| created_at | DateTime | Creation timestamp |
-| updated_at | DateTime | Last update timestamp |
-
-### Orders Table
-Stores customer orders.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| user_id | UUID | Foreign key to users.id |
-| items | JSON | List of {product_id, quantity, price} |
-| total_price | Numeric(12,2) | Total order value |
-| status | Enum | pending, confirmed, shipped, delivered, cancelled |
-| delivery_address | Text | Delivery location |
-| notes | Text | Special instructions |
-| created_at | DateTime | Order placement timestamp |
-| updated_at | DateTime | Last update timestamp |
-
-### Reviews Table
-Stores product reviews and ratings.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| user_id | UUID | Foreign key to users.id |
-| product_id | UUID | Foreign key to products.id |
-| rating | Integer | Rating (1-5) |
-| comment | Text | Optional review text |
-| created_at | DateTime | Review creation timestamp |
-| updated_at | DateTime | Last update timestamp |
-
-## API Endpoints
-
-### Authentication
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/auth/register` | Register new user | No |
-| POST | `/auth/login` | Login and get JWT token | No |
-
-### Products
-| Method | Endpoint | Description | Auth Required | Role |
-|--------|----------|-------------|---------------|------|
-| GET | `/products` | List all products (paginated) | No | - |
-| POST | `/products` | Create new product | Yes | Farmer |
-| GET | `/products/{id}` | Get product details | No | - |
-| PUT | `/products/{id}` | Update product | Yes | Farmer (owner) |
-| DELETE | `/products/{id}` | Delete product | Yes | Farmer (owner) |
-
-### Cart
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/cart` | Get current user's cart | Yes |
-| POST | `/cart/items` | Add item to cart | Yes |
-| PUT | `/cart/items/{product_id}` | Update item quantity | Yes |
-| DELETE | `/cart/items/{product_id}` | Remove item from cart | Yes |
-| DELETE | `/cart` | Clear entire cart | Yes |
-
-### Orders
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/orders` | Place new order | Yes |
-| GET | `/orders` | Get user's orders (paginated) | Yes |
-| GET | `/orders/{id}` | Get order details (owner only) | Yes |
-| PUT | `/orders/{id}` | Update order status | Yes |
-
-### Reviews
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/reviews` | Create product review | Yes |
-| GET | `/reviews/product/{product_id}` | Get product reviews (paginated) | No |
-| GET | `/reviews/{id}` | Get review details | No |
-| PUT | `/reviews/{id}` | Update review (owner only) | Yes |
-| DELETE | `/reviews/{id}` | Delete review (owner only) | Yes |
 
 ## Getting Started
 
@@ -193,7 +77,7 @@ Stores product reviews and ratings.
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone <https://github.com/gayatri-sharma04/Farmlink.git>
    cd Farmlink_backend
    ```
 
@@ -216,12 +100,7 @@ Stores product reviews and ratings.
 4. **Set up environment variables**
    
    Create a `.env` file in the project root:
-   ```env
-   DATABASE_URL=postgresql+asyncpg://username:password@localhost:5432/farmlink
-   SECRET_KEY=your-secret-key-here
-   ALGORITHM=HS256
-   ACCESS_TOKEN_EXPIRE_MINUTES=60
-   ```
+ 
 
 5. **Set up PostgreSQL database**
    ```bash
@@ -252,25 +131,6 @@ Stores product reviews and ratings.
 - **SQL Injection Prevention**: SQLAlchemy ORM prevents SQL injection attacks
 - **CORS Configured**: Cross-Origin Resource Sharing properly configured
 
-## Project Status
-
-**Completion: 85%**
-
-### Completed
-- User authentication system with JWT
-- Product CRUD operations with farmer-only access
-- Shopping cart with real-time price calculation
-- Order placement and status tracking
-- Product review system with ratings
-- Role-based access control
-- API documentation with Swagger UI
-- Database schema design
-- Input validation with Pydantic
-
-### In Progress
-- Frontend integration (React)
-- Advanced search and filtering
-- Payment gateway integration
 
 ## About This Project
 

@@ -1,7 +1,108 @@
+# from fastapi import APIRouter, Depends, HTTPException, status
+# from sqlalchemy.ext.asyncio import AsyncSession
+# from sqlalchemy.future import select
+# from uuid import UUID
+# from app.database import get_db
+# from app.models.order import Order, OrderStatus
+# from app.models.product import Product
+# from app.schemas.order import OrderCreate, OrderStatusUpdate, OrderResponse, OrderListResponse
+# from app.utils.dependencies import get_current_user
+# from app.models.user import User
+
+# router = APIRouter(prefix="/orders", tags=["orders"])
+
+
+# @router.post("/", response_model=OrderResponse)
+# async def create_order(order: OrderCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+#     """Create new order (all users)."""
+#     # Convert items to JSON-serializable format (convert UUID to string, Decimal to float)
+#     items_list = [
+#         {
+#             "product_id": str(item.product_id),
+#             "quantity": item.quantity,
+#             "price": float(item.price)
+#         }
+#         for item in order.items
+#     ]
+    
+#     new_order = Order(
+#         user_id=current_user.id,
+#         items=items_list,
+#         total_price=order.total_price,
+#         delivery_address=order.delivery_address,
+#         notes=order.notes,
+#         status=OrderStatus.PENDING
+#     )
+#     db.add(new_order)
+#     await db.commit()
+#     await db.refresh(new_order)
+#     return new_order
+
+
+# @router.get("/", response_model=list[OrderListResponse])
+# async def get_orders(skip: int = 0, limit: int = 10, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+#     """Get current user's orders with pagination."""
+#     result = await db.execute(
+#         select(Order).where(Order.user_id == current_user.id).offset(skip).limit(limit)
+#     )
+#     orders = result.scalars().all()
+#     return orders
+
+
+# @router.get("/{order_id}", response_model=OrderResponse)
+# async def get_order(order_id: UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+#     """Get order details by ID (user must be order owner)."""
+#     result = await db.execute(select(Order).where(Order.id == order_id))
+#     order = result.scalar_one_or_none()
+    
+#     if order is None:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail="Order not found"
+#         )
+    
+#     if current_user.id != order.user_id:
+#         raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN,
+#             detail="Not authorized to view this order"
+#         )
+    
+#     return order
+
+
+# @router.put("/{order_id}", response_model=OrderResponse)
+# async def update_order_status(order_id: UUID, status_update: OrderStatusUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+#     """Update order status (any user can track their order)."""
+#     result = await db.execute(select(Order).where(Order.id == order_id))
+#     order = result.scalar_one_or_none()
+    
+#     if order is None:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail="Order not found"
+#         )
+    
+#     # Validate status
+#     valid_statuses = [s.value for s in OrderStatus]
+#     if status_update.status not in valid_statuses:
+#         raise HTTPException(
+#             status_code=status.HTTP_400_BAD_REQUEST,
+#             detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
+#         )
+    
+#     order.status = status_update.status
+#     if status_update.notes:
+#         order.notes = status_update.notes
+    
+#     await db.commit()
+#     await db.refresh(order)
+#     return order
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from uuid import UUID
+from datetime import datetime, timezone, timedelta
 from app.database import get_db
 from app.models.order import Order, OrderStatus
 from app.models.product import Product
@@ -10,6 +111,22 @@ from app.utils.dependencies import get_current_user
 from app.models.user import User
 
 router = APIRouter(prefix="/orders", tags=["orders"])
+
+#  HELPER FUNCTION - Convert UTC to Nepal timezone
+def convert_to_nepal_time(dt: datetime) -> datetime:
+    """Convert UTC datetime to Nepal Standard Time (UTC+5:45)"""
+    if dt is None:
+        return None
+    
+    # Nepal timezone: UTC+5:45
+    nepal_tz = timezone(timedelta(hours=5, minutes=45))
+    
+    # Assume dt is UTC if no timezone info
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    
+    # Convert to Nepal timezone
+    return dt.astimezone(nepal_tz)
 
 
 @router.post("/", response_model=OrderResponse)
@@ -36,6 +153,11 @@ async def create_order(order: OrderCreate, db: AsyncSession = Depends(get_db), c
     db.add(new_order)
     await db.commit()
     await db.refresh(new_order)
+    
+    # Convert times to Nepal timezone before returning
+    new_order.created_at = convert_to_nepal_time(new_order.created_at)
+    new_order.updated_at = convert_to_nepal_time(new_order.updated_at)
+    
     return new_order
 
 
@@ -43,9 +165,15 @@ async def create_order(order: OrderCreate, db: AsyncSession = Depends(get_db), c
 async def get_orders(skip: int = 0, limit: int = 10, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get current user's orders with pagination."""
     result = await db.execute(
-        select(Order).where(Order.user_id == current_user.id).offset(skip).limit(limit)
+        select(Order).where(Order.user_id == current_user.id).offset(skip).limit(limit).order_by(Order.created_at.desc())
     )
     orders = result.scalars().all()
+    
+    # Convert all order times to Nepal timezone
+    for order in orders:
+        order.created_at = convert_to_nepal_time(order.created_at)
+        order.updated_at = convert_to_nepal_time(order.updated_at)
+    
     return orders
 
 
@@ -66,6 +194,10 @@ async def get_order(order_id: UUID, db: AsyncSession = Depends(get_db), current_
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this order"
         )
+    
+    # Convert times to Nepal timezone
+    order.created_at = convert_to_nepal_time(order.created_at)
+    order.updated_at = convert_to_nepal_time(order.updated_at)
     
     return order
 
@@ -96,4 +228,9 @@ async def update_order_status(order_id: UUID, status_update: OrderStatusUpdate, 
     
     await db.commit()
     await db.refresh(order)
+    
+    #  Convert times to Nepal timezone
+    order.created_at = convert_to_nepal_time(order.created_at)
+    order.updated_at = convert_to_nepal_time(order.updated_at)
+    
     return order

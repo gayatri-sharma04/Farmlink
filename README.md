@@ -99,9 +99,7 @@ Farmlink_backend/
 
 4. **Set up environment variables**
    
-   Create a `.env` file in the project root:
- 
-
+   Create a `.env` file in the project root: 
 5. **Set up PostgreSQL database**
    ```bash
    # Create database

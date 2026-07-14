@@ -46,6 +46,9 @@ class OrderListResponse(BaseModel):
     """Schema for returning order in list view."""
     id: UUID
     user_id: UUID
+    items: List[OrderItem]
     total_price: Decimal
     status: str
+    delivery_address: Optional[str]
+    notes: Optional[str]
     created_at: datetime

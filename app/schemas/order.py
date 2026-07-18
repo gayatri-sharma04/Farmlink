@@ -8,6 +8,7 @@ from decimal import Decimal
 class OrderItem(BaseModel):
     """Schema for a single item in an order."""
     product_id: UUID
+    product_name: Optional[str] = None
     quantity: int = Field(ge=1)
     price: Decimal
 

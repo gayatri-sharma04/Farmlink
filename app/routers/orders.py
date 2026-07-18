@@ -133,14 +133,20 @@ def convert_to_nepal_time(dt: datetime) -> datetime:
 async def create_order(order: OrderCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Create new order (all users)."""
     # Convert items to JSON-serializable format (convert UUID to string, Decimal to float)
-    items_list = [
-        {
+    items_list = []
+    for item in order.items:
+        # Fetch product to get name
+        product_result = await db.execute(
+            select(Product).where(Product.id == item.product_id)
+        )
+        product = product_result.scalar_one_or_none()
+        
+        items_list.append({
             "product_id": str(item.product_id),
+            "product_name": product.name if product else None,
             "quantity": item.quantity,
             "price": float(item.price)
-        }
-        for item in order.items
-    ]
+        })
     
     new_order = Order(
         user_id=current_user.id,
@@ -164,12 +170,44 @@ async def create_order(order: OrderCreate, db: AsyncSession = Depends(get_db), c
 @router.get("/", response_model=list[OrderListResponse])
 async def get_orders(skip: int = 0, limit: int = 10, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get current user's orders with pagination."""
-    result = await db.execute(
-        select(Order).where(Order.user_id == current_user.id).offset(skip).limit(limit).order_by(Order.created_at.desc())
-    )
-    orders = result.scalars().all()
     
-    # Convert all order times to Nepal timezone
+    # If user is CONSUMER: get orders they placed
+    if current_user.role == "consumer":
+        result = await db.execute(
+            select(Order).where(Order.user_id == current_user.id)
+            .offset(skip).limit(limit)
+            .order_by(Order.created_at.desc())
+        )
+        orders = result.scalars().all()
+    
+    # If user is FARMER: get orders containing their products
+    elif current_user.role == "farmer":
+        # Get all farmer's products
+        products_result = await db.execute(
+            select(Product).where(Product.farmer_id == current_user.id)
+        )
+        farmer_products = products_result.scalars().all()
+        farmer_product_ids = [str(p.id) for p in farmer_products]
+        
+        # Get all orders
+        all_orders_result = await db.execute(
+            select(Order).offset(skip).limit(limit).order_by(Order.created_at.desc())
+        )
+        all_orders = all_orders_result.scalars().all()
+        
+        # Filter orders that contain farmer's products
+        orders = []
+        for order in all_orders:
+            # Check if any item in order belongs to this farmer
+            for item in order.items:
+                if item.get('product_id') in farmer_product_ids:
+                    orders.append(order)
+                    break
+    
+    else:
+        orders = []
+    
+    # Convert times to Nepal timezone
     for order in orders:
         order.created_at = convert_to_nepal_time(order.created_at)
         order.updated_at = convert_to_nepal_time(order.updated_at)

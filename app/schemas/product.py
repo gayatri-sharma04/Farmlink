@@ -35,6 +35,7 @@ class ProductResponse(BaseModel):
     quantity: int
     category: str
     farmer_id: UUID
+    farmer_name: Optional[str] = None
     image_url: Optional[str]
     is_available: bool
     created_at: datetime

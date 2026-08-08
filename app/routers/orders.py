@@ -131,40 +131,69 @@ def convert_to_nepal_time(dt: datetime) -> datetime:
 
 @router.post("/", response_model=OrderResponse)
 async def create_order(order: OrderCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """Create new order (all users)."""
-    # Convert items to JSON-serializable format (convert UUID to string, Decimal to float)
-    items_list = []
-    for item in order.items:
-        # Fetch product to get name
-        product_result = await db.execute(
-            select(Product).where(Product.id == item.product_id)
-        )
-        product = product_result.scalar_one_or_none()
+    """Create new order and update inventory."""
+    try:
+        # Verify user is consumer
+        if current_user.role != "consumer":
+            raise HTTPException(status_code=403, detail="Only consumers can place orders")
+
+        # Convert items to JSON-serializable format and update inventory
+        items_list = []
+        for item in order.items:
+            # Get product
+            product_result = await db.execute(
+                select(Product).where(Product.id == item.product_id)
+            )
+            product = product_result.scalar_one_or_none()
+            
+            if not product:
+                raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
+            
+            # Check if enough quantity available
+            if product.quantity < item.quantity:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Not enough {product.name} in stock. Available: {product.quantity}, Requested: {item.quantity}"
+                )
+            
+            # DECREASE INVENTORY
+            product.quantity -= item.quantity
+            if product.quantity < 0:
+                product.quantity = 0
+            
+            items_list.append({
+                "product_id": str(item.product_id),
+                "product_name": product.name if product else None,
+                "quantity": item.quantity,
+                "price": float(item.price)
+            })
         
-        items_list.append({
-            "product_id": str(item.product_id),
-            "product_name": product.name if product else None,
-            "quantity": item.quantity,
-            "price": float(item.price)
-        })
-    
-    new_order = Order(
-        user_id=current_user.id,
-        items=items_list,
-        total_price=order.total_price,
-        delivery_address=order.delivery_address,
-        notes=order.notes,
-        status=OrderStatus.PENDING
-    )
-    db.add(new_order)
-    await db.commit()
-    await db.refresh(new_order)
-    
-    # Convert times to Nepal timezone before returning
-    new_order.created_at = convert_to_nepal_time(new_order.created_at)
-    new_order.updated_at = convert_to_nepal_time(new_order.updated_at)
-    
-    return new_order
+        # Create order record
+        new_order = Order(
+            user_id=current_user.id,
+            items=items_list,
+            total_price=order.total_price,
+            delivery_address=order.delivery_address,
+            notes=order.notes,
+            status=OrderStatus.PENDING
+        )
+        
+        db.add(new_order)
+        await db.commit()
+        await db.refresh(new_order)
+        
+        # Convert times to Nepal timezone before returning
+        new_order.created_at = convert_to_nepal_time(new_order.created_at)
+        new_order.updated_at = convert_to_nepal_time(new_order.updated_at)
+        
+        return new_order
+        
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating order: {str(e)}")
 
 
 @router.get("/", response_model=list[OrderListResponse])

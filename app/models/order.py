@@ -14,6 +14,12 @@ class OrderStatus(str, enum.Enum):
     CANCELLED = "cancelled"
 
 
+class PaymentMethodEnum(str, enum.Enum):
+    COD = "COD"
+    CARD = "CARD"
+    EWALLET = "EWALLET"
+
+
 class Order(Base):
     """Order model for tracking customer purchases."""
     __tablename__ = "orders"
@@ -25,5 +31,6 @@ class Order(Base):
     status = Column(SQLEnum(OrderStatus), nullable=False, default=OrderStatus.PENDING)
     delivery_address = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
+    payment_method = Column(String, default="cod")
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

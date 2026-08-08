@@ -36,6 +36,7 @@ class OrderResponse(BaseModel):
     status: str
     delivery_address: str
     notes: Optional[str]
+    payment_method: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -52,4 +53,5 @@ class OrderListResponse(BaseModel):
     status: str
     delivery_address: Optional[str]
     notes: Optional[str]
+    payment_method: Optional[str] = None
     created_at: datetime
